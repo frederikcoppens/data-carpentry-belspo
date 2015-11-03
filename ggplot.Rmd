@@ -1,0 +1,130 @@
+---
+title: "DC_plot"
+author: "Frederik Coppens"
+date: "1 November 2015"
+output: html_document
+---
+
+# R MarkDown example
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+# Loading libraries
+
+```{r}
+# plotting package
+library(ggplot2)
+# piping / chaining
+library(magrittr)
+# modern dataframe manipulations
+library(dplyr)
+```
+
+# Reading & cleaning data
+
+```{r}
+
+surveys_raw <- read.csv('data/portal_data_joined.csv')
+
+summary(surveys_raw)
+
+surveys_complete <- surveys_raw %>%
+  filter(!is.na(weight)) %>%          # remove missing weight
+  filter(!is.na(hindfoot_length))     # remove missing hindfoot_length
+
+dim(surveys_complete)
+```
+
+# Data analysis
+
+## Selection 
+
+Count records per species
+```{r}
+species_select <- surveys_complete %>%
+  group_by(species_id) %>%
+  tally %>%
+  filter(n >= 10) %>%
+  select(species_id)
+
+species_select
+```
+
+Select data & simple plot
+```{r}
+surveys_select <- surveys_complete %>%
+  filter(species_id %in% species_select$species_id) %>%
+  select(species_id, weight, hindfoot_length, year)
+
+plot(x = surveys_select$weight, y = surveys_select$hindfoot_length)
+```
+
+## Using ggplot
+
+### Scatter plots
+```{r}
+ggplot(data = surveys_select, aes(x = weight, y = hindfoot_length)) +
+  geom_point()
+
+ggplot(data = surveys_select, aes(x = weight, y = hindfoot_length)) +
+  geom_point(alpha = 0.1)
+
+ggplot(data = surveys_select, aes(x = weight, y = hindfoot_length)) +
+  geom_point(alpha = 0.1, color = "blue")
+```
+
+### A boxplot
+```{r}
+ggplot(data = surveys_select, aes(x = species_id,  y = weight)) +
+  geom_boxplot()
+
+ggplot(data = surveys_select, aes(x = species_id, y = weight)) +
+  geom_jitter(alpha = 0.3, color = "tomato") +
+  geom_boxplot(alpha = 0)
+```
+
+### Time series
+```{r}
+yearly_counts <- surveys_select %>%
+  group_by(year, species_id) %>%
+  tally
+
+ggplot(data = yearly_counts, aes(x = year, y = n)) +
+  geom_line()
+
+ggplot(data = yearly_counts, aes(x = year, y = n, group = species_id)) +
+  geom_line()
+
+ggplot(data = yearly_counts, aes(x = year, y = n, group = species_id, color = species_id)) +
+  geom_line()
+```
+
+### Facetting
+
+```{r, echo=FALSE}
+ggplot(data = yearly_counts, aes(x = year, y = n, color = species_id)) +
+  geom_line() + facet_wrap(~species_id)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+### challenge
+
+```{r}
+
+sex_values = c("F", "M")
+surveys_select_sex <- surveys_complete %>%
+  filter(species_id %in% species_select$species_id) %>%
+  select(species_id, weight, hindfoot_length, sex, year) %>% 
+  filter(sex %in% sex_values)
+
+yearly_sex_counts <- surveys_select_sex %>%
+  group_by(year, species_id, sex) %>%
+  tally
+
+ggplot(data = yearly_sex_counts, aes(x = year, y = n, color = sex, group = sex)) +
+  geom_line() + facet_wrap(~ species_id)
+
+```
